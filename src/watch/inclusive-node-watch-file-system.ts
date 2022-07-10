@@ -2,6 +2,7 @@ import { extname } from 'path';
 
 import type { FSWatcher } from 'chokidar';
 import chokidar from 'chokidar';
+import { realpathSync } from 'fs-extra';
 import minimatch from 'minimatch';
 import type { Compiler } from 'webpack';
 
@@ -12,6 +13,10 @@ import type { ForkTsCheckerWebpackPluginState } from '../plugin-state';
 import type { WatchFileSystem } from './watch-file-system';
 
 const BUILTIN_IGNORED_DIRS = ['node_modules', '.git', '.yarn', '.pnp'];
+
+function isDirectoryInPath(path: string, directory: string) {
+  return path.includes(`/${directory}/`) || path.includes(`\\${directory}\\`);
+}
 
 function createIsIgnored(
   ignored: string | RegExp | (string | RegExp)[] | undefined,
@@ -34,7 +39,10 @@ function createIsIgnored(
   );
   ignoredFunctions.push((path: string) =>
     BUILTIN_IGNORED_DIRS.some(
-      (ignoredDir) => path.includes(`/${ignoredDir}/`) || path.includes(`\\${ignoredDir}\\`)
+      (ignoredDir) =>
+        isDirectoryInPath(path, ignoredDir) &&
+        // if it's a symlink, check if real path is also ignored
+        isDirectoryInPath(realpathSync(path), ignoredDir)
     )
   );
 
